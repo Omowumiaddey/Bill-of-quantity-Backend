@@ -25,8 +25,20 @@ const app = express();
 // Body parser
 app.use(express.json());
 
-// Enable CORS
-app.use(cors());
+// Dynamic CORS based on environment
+const corsOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL_VITE,
+  process.env.FRONTEND_PROD_URL,
+  "https://bill-of-quantity-backend.onrender.com"
+].filter(Boolean); // Remove undefined values
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+})); // Allows ALL origins
 
 // Security headers
 app.use(helmet());
@@ -39,8 +51,15 @@ if (process.env.NODE_ENV === 'development') {
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerOptions));
 
-// API Info endpoint
+// API Info endpoint - redirect to Swagger
 app.get('/', (req, res) => {
+  // Check if request accepts HTML (browser request)
+  if (req.headers.accept && req.headers.accept.includes('text/html')) {
+    // Redirect browsers to Swagger documentation
+    return res.redirect('/api-docs');
+  }
+  
+  // Return JSON for API clients
   res.json({
     message: 'Bill of Quantity API',
     version: '1.0.0',
@@ -78,6 +97,9 @@ app.listen(PORT, () => {
   console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
   console.log(`🔗 API Base URL: http://localhost:${PORT}`);
 });
+
+
+
 
 
 

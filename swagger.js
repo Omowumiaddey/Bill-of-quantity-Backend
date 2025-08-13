@@ -15,12 +15,12 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:5000',
-        description: 'Development server',
+        url: 'https://bill-of-quantity-backend.onrender.com',
+        description: 'Production server (Render)',
       },
       {
-        url: 'https://your-production-url.com',
-        description: 'Production server',
+        url: 'http://localhost:5000',
+        description: 'Development server',
       }
     ],
     components: {
@@ -82,6 +82,7 @@ module.exports = {
   swaggerUi,
   swaggerOptions 
 };
+
 
 
 
