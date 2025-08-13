@@ -34,7 +34,7 @@ const corsOrigins = [
 ].filter(Boolean); // Remove undefined values
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -97,6 +97,7 @@ app.listen(PORT, () => {
   console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
   console.log(`🔗 API Base URL: http://localhost:${PORT}`);
 });
+
 
 
 
