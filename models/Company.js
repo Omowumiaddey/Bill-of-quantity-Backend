@@ -17,31 +17,21 @@ const CompanySchema = new mongoose.Schema({
       'Please add a valid email'
     ]
   },
-  companyNumber: {
+  companyAddress: {
     type: String,
-    required: [true, 'Please add a company number']
+    required: [true, 'Please add a company address']
   },
-  companyLocation: {
+  companyContactNumber: {
     type: String,
-    required: [true, 'Please add a company location']
-  },
-  companyLogo: {
-    type: String // URL to uploaded logo
+    required: [true, 'Please add a company contact number']
   },
   adminPassword: {
     type: String,
     required: [true, 'Please set admin password'],
     minlength: 6
   },
-  userPassword: {
-    type: String,
-    required: [true, 'Please set user password'],
-    minlength: 6
-  },
-  supervisorPassword: {
-    type: String,
-    required: [true, 'Please set supervisor password'],
-    minlength: 6
+  companyLogo: {
+    type: String // URL to uploaded logo file
   },
   isVerified: {
     type: Boolean,
@@ -59,26 +49,18 @@ const CompanySchema = new mongoose.Schema({
   }
 });
 
-// Encrypt passwords using bcrypt
+// Encrypt admin password only
 CompanySchema.pre('save', async function(next) {
-  if (!this.isModified('adminPassword') && !this.isModified('userPassword') && !this.isModified('supervisorPassword')) {
+  if (!this.isModified('adminPassword')) {
     next();
   }
 
-  if (this.isModified('adminPassword')) {
-    const salt = await bcrypt.genSalt(10);
-    this.adminPassword = await bcrypt.hash(this.adminPassword, salt);
-  }
-  
-  if (this.isModified('userPassword')) {
-    const salt = await bcrypt.genSalt(10);
-    this.userPassword = await bcrypt.hash(this.userPassword, salt);
-  }
-  
-  if (this.isModified('supervisorPassword')) {
-    const salt = await bcrypt.genSalt(10);
-    this.supervisorPassword = await bcrypt.hash(this.supervisorPassword, salt);
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.adminPassword = await bcrypt.hash(this.adminPassword, salt);
 });
 
 module.exports = mongoose.model('Company', CompanySchema);
+
+
+
+

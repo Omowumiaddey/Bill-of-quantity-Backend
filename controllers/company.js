@@ -14,11 +14,10 @@ exports.registerCompany = async (req, res, next) => {
     const {
       companyName,
       companyEmail,
-      companyNumber,
-      companyLocation,
+      companyAddress,
+      companyContactNumber,
       adminPassword,
-      userPassword,
-      supervisorPassword
+      companyLogo
     } = req.body;
 
     // Generate OTP
@@ -28,11 +27,10 @@ exports.registerCompany = async (req, res, next) => {
     const company = await Company.create({
       companyName,
       companyEmail,
-      companyNumber,
-      companyLocation,
+      companyAddress,
+      companyContactNumber,
       adminPassword,
-      userPassword,
-      supervisorPassword,
+      companyLogo, // Will be URL after file upload processing
       verificationOTP: otp,
       otpExpires
     });
@@ -109,3 +107,4 @@ exports.getCompany = async (req, res, next) => {
     next(err);
   }
 };
+
