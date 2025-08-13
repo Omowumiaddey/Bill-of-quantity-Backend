@@ -24,8 +24,9 @@ module.exports = router;
  *       required:
  *         - companyName
  *         - companyEmail
- *         - companyNumber
- *         - companyLocation
+ *         - companyAddress
+ *         - companyContactNumber
+ *         - adminPassword
  *       properties:
  *         companyName:
  *           type: string
@@ -34,21 +35,18 @@ module.exports = router;
  *           type: string
  *           format: email
  *           example: "info@abccatering.com"
- *         companyNumber:
+ *         companyAddress:
+ *           type: string
+ *           example: "123 Main Street, New York, NY 10001"
+ *         companyContactNumber:
  *           type: string
  *           example: "+1-555-123-4567"
- *         companyLocation:
- *           type: string
- *           example: "New York, NY"
  *         adminPassword:
  *           type: string
  *           example: "admin123"
- *         userPassword:
+ *         companyLogo:
  *           type: string
- *           example: "user123"
- *         supervisorPassword:
- *           type: string
- *           example: "supervisor123"
+ *           example: "https://example.com/logo.png"
  */
 
 /**
@@ -93,3 +91,7 @@ module.exports = router;
  *       200:
  *         description: Company details
  */
+
+
+
+
