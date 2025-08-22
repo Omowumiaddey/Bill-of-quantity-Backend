@@ -6,7 +6,7 @@ const Event = require('../models/Event');
 exports.getEvents = async (req, res, next) => {
   try {
     const events = await Event.find({ company: req.user.company })
-      .populate('customer', 'companyName emailAddress')
+      .populate('customer', 'companyName email')
       .populate('createdBy', 'username');
     
     res.status(200).json({ 
@@ -25,7 +25,7 @@ exports.getEvents = async (req, res, next) => {
 exports.getEvent = async (req, res, next) => {
   try {
     const event = await Event.findById(req.params.id)
-      .populate('customer', 'companyName emailAddress')
+      .populate('customer', 'companyName email')
       .populate('createdBy', 'username');
     
     if (!event) {

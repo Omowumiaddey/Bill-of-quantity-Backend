@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const CustomerSchema = new mongoose.Schema({
   companyName: {
@@ -7,41 +6,34 @@ const CustomerSchema = new mongoose.Schema({
     required: [true, 'Please add a company name'],
     trim: true
   },
-  mobileNumber: {
+  contactPerson: {
     type: String,
-    required: [true, 'Please add a mobile number']
+    required: [true, 'Please add a contact person'],
+    trim: true
   },
-  companyAddress: {
-    type: String,
-    required: [true, 'Please add a company address']
+  address: {
+    type: String
   },
-  emailAddress: {
+  email: {
     type: String,
-    required: [true, 'Please add an email address'],
     match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/,
       'Please add a valid email'
     ]
   },
-  username: {
+  mobile: {
     type: String,
-  unique: true,
-    trim: true
-    
+    required: [true, 'Please add a mobile number']
   },
-  socialMedia: {
-    type: String
-  },
-  cateringServicesType: {
-    type: String,
-    enum: ['foreign', 'local', 'corporate', 'other'],
-    required: [true, 'Please specify catering services type']
-  },
-  password: {
-    type: String,
-    required: [true, 'Please add a password'],
-    minlength: 6,
-    select: false
+  twitter: { type: String },
+  instagram: { type: String },
+  facebook: { type: String },
+  discord: { type: String },
+  linkedin: { type: String },
+  cateringType: { type: String },
+  dateJoined: {
+    type: Date,
+    default: Date.now
   },
   createdBy: {
     type: mongoose.Schema.ObjectId,
@@ -57,16 +49,6 @@ const CustomerSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-});
-
-// Encrypt password using bcrypt
-CustomerSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
 });
 
 module.exports = mongoose.model('Customer', CustomerSchema);

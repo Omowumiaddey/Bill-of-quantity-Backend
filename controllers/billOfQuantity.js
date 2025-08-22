@@ -28,7 +28,7 @@ exports.getBills = async (req, res, next) => {
     // Finding resource
     query = BillOfQuantity.find(JSON.parse(queryStr))
       .populate('event', 'eventName eventDate')
-      .populate('customer', 'companyName emailAddress')
+      .populate('customer', 'companyName email')
       .populate('menuItems.menu', 'name');
 
     // Select Fields

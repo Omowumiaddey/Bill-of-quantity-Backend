@@ -21,7 +21,7 @@ exports.getCustomers = async (req, res, next) => {
 // @access  Private
 exports.getCustomer = async (req, res, next) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findOne({ _id: req.params.id, company: req.user.company });
     
     if (!customer) {
       return res.status(404).json({
@@ -44,9 +44,66 @@ exports.getCustomer = async (req, res, next) => {
 // @access  Private
 exports.createCustomer = async (req, res, next) => {
   try {
-    req.body.createdBy = req.user.id;
-    req.body.company = req.user.company;
-    const customer = await Customer.create(req.body);
+    const {
+      companyName,
+      contactPerson,
+      address,
+      email,
+      twitter,
+      instagram,
+      facebook,
+      discord,
+      linkedin,
+      cateringType,
+      mobile,
+      dateJoined
+    } = req.body;
+
+    const fieldErrors = {
+      companyName: companyName ? undefined : 'Company name is required',
+      contactPerson: contactPerson ? undefined : 'Contact person is required',
+      mobile: mobile ? undefined : 'Mobile number is required'
+    };
+
+    if (Object.values(fieldErrors).some(Boolean)) {
+      return res.status(400).json({
+        success: false,
+        fieldErrors,
+        fields: {
+          companyName,
+          contactPerson,
+          address,
+          email,
+          twitter,
+          instagram,
+          facebook,
+          discord,
+          linkedin,
+          cateringType,
+          mobile,
+          dateJoined
+        }
+      });
+    }
+
+    const payload = {
+      companyName,
+      contactPerson,
+      address,
+      email,
+      twitter,
+      instagram,
+      facebook,
+      discord,
+      linkedin,
+      cateringType,
+      mobile,
+      dateJoined,
+      createdBy: req.user.id,
+      company: req.user.company
+    };
+
+    const customer = await Customer.create(payload);
     res.status(201).json({ success: true, data: customer });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -58,8 +115,8 @@ exports.createCustomer = async (req, res, next) => {
 // @access  Private
 exports.updateCustomer = async (req, res, next) => {
   try {
-    const customer = await Customer.findByIdAndUpdate(
-      req.params.id,
+    const customer = await Customer.findOneAndUpdate(
+      { _id: req.params.id, company: req.user.company },
       req.body,
       { new: true, runValidators: true }
     );
@@ -85,7 +142,7 @@ exports.updateCustomer = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.deleteCustomer = async (req, res, next) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findOne({ _id: req.params.id, company: req.user.company });
 
     if (!customer) {
       return res.status(404).json({

@@ -19,7 +19,7 @@ const { protect } = require('../middleware/auth');
  *       required:
  *         - companyName
  *         - contactPerson
- *         - emailAddress
+ *         - mobile
  *       properties:
  *         companyName:
  *           type: string
@@ -27,16 +27,31 @@ const { protect } = require('../middleware/auth');
  *         contactPerson:
  *           type: string
  *           example: "John Smith"
- *         emailAddress:
- *           type: string
- *           format: email
- *           example: "john@smithweddings.com"
- *         phoneNumber:
- *           type: string
- *           example: "+1-555-987-6543"
  *         address:
  *           type: string
  *           example: "456 Oak Street, Boston, MA"
+ *         email:
+ *           type: string
+ *           format: email
+ *           example: "john@smithweddings.com"
+ *         mobile:
+ *           type: string
+ *           example: "+1-555-987-6543"
+ *         twitter:
+ *           type: string
+ *         instagram:
+ *           type: string
+ *         facebook:
+ *           type: string
+ *         discord:
+ *           type: string
+ *         linkedin:
+ *           type: string
+ *         cateringType:
+ *           type: string
+ *         dateJoined:
+ *           type: string
+ *           format: date
  */
 
 /**
