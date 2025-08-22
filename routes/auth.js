@@ -9,6 +9,11 @@ const {
 
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const multer = require('multer');
+// Configure multer to handle file uploads.
+// The upload object is the middleware.
+// We use multer() without a destination to store the file in memory.
+const upload = multer();
 
 /**
  * @swagger
@@ -221,6 +226,12 @@ router.get('/me', protect, getMe);
  *                   example: User logged out successfully
  */
 router.get('/logout', protect, logout);
+router.post('/register', upload.single('companyLogo'), register); // Add multer middleware here
+router.post('/login', login);
+router.post('/verify-otp', verifyUserOTP);
+router.get('/me', protect, getMe);
+router.get('/logout', protect, logout);
+
 
 module.exports = router;
 
