@@ -17,8 +17,18 @@ exports.registerCompany = async (req, res, next) => {
       companyAddress,
       companyContactNumber,
       adminPassword,
-      companyLogo
+      companyLogo: companyLogoBody
     } = req.body;
+
+    // If multipart/form-data was used and a file was uploaded, prefer it
+    let companyLogo = companyLogoBody;
+    if (req.file) {
+      // Build a public URL to the uploaded file
+      const protocol = req.protocol;
+      const host = req.get('host');
+      const baseUrl = `${protocol}://${host}`;
+      companyLogo = `${baseUrl}/uploads/${req.file.filename}`;
+    }
 
     // Generate OTP
     const otp = generateOTP();
@@ -30,7 +40,7 @@ exports.registerCompany = async (req, res, next) => {
       companyAddress,
       companyContactNumber,
       adminPassword,
-      companyLogo, // Will be URL after file upload processing
+      companyLogo, // URL to uploaded logo file if provided
       verificationOTP: otp,
       otpExpires
     });

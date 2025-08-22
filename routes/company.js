@@ -8,8 +8,10 @@ const {
 const router = express.Router();
 
 const { protect } = require('../middleware/auth');
+const { upload } = require('../middleware/upload');
 
-router.post('/register', registerCompany);
+// Accept both JSON and multipart/form-data (optional companyLogo file)
+router.post('/register', upload.single('companyLogo'), registerCompany);
 router.post('/verify-otp', verifyCompanyOTP);
 router.get('/:id', protect, getCompany);
 
