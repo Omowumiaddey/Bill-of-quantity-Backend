@@ -26,7 +26,11 @@ const menus = require('./routes/menus');
 const app = express();
 
 // Body parser
-app.use(express.json());
+// Skip JSON parsing for company registration to allow multipart/form-data
+app.use((req, res, next) => {
+  if (req.path === '/api/company/register') return next();
+  return express.json()(req, res, next);
+});
 
 // Multer file upload setup
 const uploadsDir = path.join(__dirname, 'uploads');
