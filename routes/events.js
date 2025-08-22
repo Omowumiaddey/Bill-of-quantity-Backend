@@ -40,6 +40,23 @@ const { protect } = require('../middleware/auth');
  *         customer:
  *           type: string
  *           example: "507f1f77bcf86cd799439011"
+ *     EventUpdate:
+ *       type: object
+ *       description: Fields to update on an event (all optional)
+ *       properties:
+ *         eventName:
+ *           type: string
+ *         eventDate:
+ *           type: string
+ *           format: date
+ *         eventTime:
+ *           type: string
+ *         location:
+ *           type: string
+ *         guestCount:
+ *           type: number
+ *         customer:
+ *           type: string
  */
 
 /**
@@ -120,6 +137,45 @@ router.route('/:id')
   .get(getEvent)
   .put(updateEvent)
   .delete(deleteEvent);
+
+/**
+ * @swagger
+ * /api/events/{id}:
+ *   put:
+ *     summary: Update event
+ *     tags: [Events]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EventUpdate'
+ *     responses:
+ *       200:
+ *         description: Event updated successfully
+ *   delete:
+ *     summary: Delete event
+ *     tags: [Events]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Event deleted successfully
+ */
 
 module.exports = router;
 

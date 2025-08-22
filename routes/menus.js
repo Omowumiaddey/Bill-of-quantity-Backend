@@ -51,6 +51,25 @@ module.exports = router;
  *         estimatedCost:
  *           type: number
  *           example: 15.99
+ *     MenuUpdate:
+ *       type: object
+ *       description: Fields to update on a menu (all optional)
+ *       properties:
+ *         name:
+ *           type: string
+ *         description:
+ *           type: string
+ *         ingredients:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               ingredient:
+ *                 type: string
+ *               quantity:
+ *                 type: number
+ *         estimatedCost:
+ *           type: number
  */
 
 /**
@@ -135,7 +154,7 @@ module.exports = router;
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Menu'
+ *             $ref: '#/components/schemas/MenuUpdate'
  *     responses:
  *       200:
  *         description: Menu updated successfully

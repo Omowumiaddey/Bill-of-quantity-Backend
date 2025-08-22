@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getIngredients,
+  getIngredient,
   createIngredient,
   updateIngredient,
   deleteIngredient
@@ -16,6 +17,7 @@ router.route('/')
   .post(createIngredient);
 
 router.route('/:id')
+  .get(getIngredient)
   .put(updateIngredient)
   .delete(deleteIngredient);
 
@@ -45,6 +47,22 @@ router.route('/:id')
  *         category:
  *           type: string
  *           example: "507f1f77bcf86cd799439011"
+ *     IngredientUpdate:
+ *       type: object
+ *       description: Fields to update on an ingredient (all optional)
+ *       properties:
+ *         name:
+ *           type: string
+ *         unit:
+ *           type: string
+ *         unitPrice:
+ *           type: number
+ *         currentStock:
+ *           type: number
+ *         minimumStock:
+ *           type: number
+ *         category:
+ *           type: string
  */
 
 /**
@@ -98,6 +116,42 @@ router.route('/:id')
  *     responses:
  *       200:
  *         description: Ingredient details
+ *       404:
+ *         description: Ingredient not found
+ *   put:
+ *     summary: Update ingredient
+ *     tags: [Ingredients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/IngredientUpdate'
+ *     responses:
+ *       200:
+ *         description: Ingredient updated successfully
+ *   delete:
+ *     summary: Delete ingredient
+ *     tags: [Ingredients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ingredient deleted successfully
  */
 
 module.exports = router;

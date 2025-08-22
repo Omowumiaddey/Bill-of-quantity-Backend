@@ -19,6 +19,28 @@ exports.getIngredients = async (req, res, next) => {
   }
 };
 
+// @desc    Get single ingredient
+// @route   GET /api/ingredients/:id
+// @access  Private
+exports.getIngredient = async (req, res, next) => {
+  try {
+    const ingredient = await Ingredient.findOne({
+      _id: req.params.id,
+      company: req.user.company
+    })
+      .populate('category', 'name')
+      .populate('createdBy', 'username');
+
+    if (!ingredient) {
+      return res.status(404).json({ success: false, error: 'Ingredient not found' });
+    }
+
+    res.status(200).json({ success: true, data: ingredient });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 // @desc    Create new ingredient
 // @route   POST /api/ingredients
 // @access  Private
@@ -43,8 +65,8 @@ exports.createIngredient = async (req, res, next) => {
 // @access  Private
 exports.updateIngredient = async (req, res, next) => {
   try {
-    const ingredient = await Ingredient.findByIdAndUpdate(
-      req.params.id,
+    const ingredient = await Ingredient.findOneAndUpdate(
+      { _id: req.params.id, company: req.user.company },
       req.body,
       { new: true, runValidators: true }
     );
@@ -67,7 +89,7 @@ exports.updateIngredient = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.deleteIngredient = async (req, res, next) => {
   try {
-    const ingredient = await Ingredient.findById(req.params.id);
+    const ingredient = await Ingredient.findOne({ _id: req.params.id, company: req.user.company });
 
     if (!ingredient) {
       return res.status(404).json({ success: false, error: 'Ingredient not found' });

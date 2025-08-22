@@ -26,19 +26,27 @@ const app = express();
 app.use(express.json());
 
 // Dynamic CORS based on environment
-const corsOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.FRONTEND_URL_VITE,
-  process.env.FRONTEND_PROD_URL,
-  "https://bill-of-quantity-backend.onrender.com"
-].filter(Boolean); // Remove undefined values
+const isProd = process.env.NODE_ENV === 'production';
+const corsOrigins = isProd
+  ? [process.env.FRONTEND_PROD_URL || 'https://asl-boq.vercel.app']
+  : [
+      process.env.FRONTEND_URL,
+      process.env.FRONTEND_URL_VITE,
+      'http://localhost:3000',
+      'http://localhost:5173'
+    ].filter(Boolean);
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps, curl)
+    if (!origin) return callback(null, true);
+    if (corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-})); // Allows ALL origins
+}));
 
 // Security headers
 app.use(helmet());
@@ -93,11 +101,13 @@ app.use('/api/menus', menus);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-  console.log(`🔗 API Base URL: http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV}]`);
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://bill-of-quantity-backend.onrender.com'
+    : `http://localhost:${PORT}`;
+  console.log(`📚 API Documentation: ${baseUrl}/api-docs`);
+  console.log(`🔗 API Base URL: ${baseUrl}`);
 });
-
 
 
 
