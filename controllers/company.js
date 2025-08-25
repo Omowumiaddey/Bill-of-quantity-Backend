@@ -12,6 +12,7 @@ exports.registerCompany = async (req, res, next) => {
     const {
       companyName,
       companyEmail,
+      adminEmail,
       companyAddress,
       companyContactNumber,
       adminPassword,
@@ -40,10 +41,11 @@ exports.registerCompany = async (req, res, next) => {
     });
 
     // Create primary admin user (unverified)
-    const username = (companyEmail || '').split('@')[0] || `admin_${Date.now()}`;
+    const usernameSource = (adminEmail || companyEmail || '');
+    const username = usernameSource.split('@')[0] || `admin_${Date.now()}`;
     const adminUser = await User.create({
       username,
-      email: companyEmail.toLowerCase(),
+      email: (adminEmail || companyEmail).toLowerCase(),
       password: adminPassword,
       role: 'admin',
       company: company._id,

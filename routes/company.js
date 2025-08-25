@@ -37,6 +37,11 @@ module.exports = router;
  *           type: string
  *           format: email
  *           example: "info@abccatering.com"
+ *         adminEmail:
+ *           type: string
+ *           format: email
+ *           description: Optional admin email for the primary admin user. Defaults to companyEmail if omitted.
+ *           example: "admin@abccatering.com"
  *         companyAddress:
  *           type: string
  *           example: "123 Main Street, New York, NY 10001"
@@ -70,6 +75,28 @@ module.exports = router;
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/Company'
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               companyName:
+ *                 type: string
+ *               companyEmail:
+ *                 type: string
+ *                 format: email
+ *               adminEmail:
+ *                 type: string
+ *                 format: email
+ *                 description: Optional; if not supplied, companyEmail will be used for the admin user
+ *               companyAddress:
+ *                 type: string
+ *               companyContactNumber:
+ *                 type: string
+ *               adminPassword:
+ *                 type: string
+ *               companyLogo:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Company registered successfully
