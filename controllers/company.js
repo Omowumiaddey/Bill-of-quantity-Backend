@@ -1,10 +1,8 @@
 const Company = require('../models/Company');
-const crypto = require('crypto');
+const User = require('../models/User');
+const { createOtp, verifyOtp } = require('../utils/otp');
+const { sendMail, otpTemplate } = require('../utils/email');
 
-// Generate OTP
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
 
 // @desc    Register company
 // @route   POST /api/company/register
@@ -30,31 +28,46 @@ exports.registerCompany = async (req, res, next) => {
       companyLogo = `${baseUrl}/uploads/${req.file.filename}`;
     }
 
-    // Generate OTP
-    const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
+    // Create company in unverified state (adminPassword hashed by model)
     const company = await Company.create({
       companyName,
-      companyEmail,
+      companyEmail: companyEmail.toLowerCase(),
       companyAddress,
       companyContactNumber,
       adminPassword,
-      companyLogo, // URL to uploaded logo file if provided
-      verificationOTP: otp,
-      otpExpires
+      companyLogo,
+      isVerified: false
     });
 
-    // TODO: Send OTP via email
-    console.log(`OTP for ${companyEmail}: ${otp}`);
+    // Create primary admin user (unverified)
+    const username = (companyEmail || '').split('@')[0] || `admin_${Date.now()}`;
+    const adminUser = await User.create({
+      username,
+      email: companyEmail.toLowerCase(),
+      password: adminPassword,
+      role: 'admin',
+      company: company._id,
+      isVerified: false,
+      isPrimaryAdmin: false
+    });
+
+    // Generate OTP via centralized service
+    const { code } = await createOtp({
+      subject: 'COMPANY_REG',
+      recipientEmail: company.companyEmail,
+      company: company._id,
+      meta: { companyId: company._id.toString(), adminUserId: adminUser._id.toString() },
+      ttlMinutes: 10
+    });
+
+    // Send OTP email
+    const template = otpTemplate({ companyName: company.companyName, code, purpose: 'Company registration' });
+    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
 
     res.status(201).json({
       success: true,
-      message: 'Company registered successfully. Please verify with OTP sent to your email.',
-      data: {
-        companyId: company._id,
-        companyEmail: company.companyEmail
-      }
+      message: 'Company registered. Verify with OTP sent to company email to activate.',
+      data: { companyId: company._id, companyEmail: company.companyEmail, adminUserId: adminUser._id }
     });
   } catch (err) {
     next(err);
@@ -67,29 +80,34 @@ exports.registerCompany = async (req, res, next) => {
 exports.verifyCompanyOTP = async (req, res, next) => {
   try {
     const { companyEmail, otp } = req.body;
-
-    const company = await Company.findOne({
-      companyEmail,
-      verificationOTP: otp,
-      otpExpires: { $gt: Date.now() }
-    });
-
-    if (!company) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid or expired OTP'
-      });
+    if (!companyEmail || !otp) {
+      return res.status(400).json({ success: false, error: 'companyEmail and otp are required' });
     }
 
+    const company = await Company.findOne({ companyEmail: companyEmail.toLowerCase() });
+    if (!company) {
+      return res.status(404).json({ success: false, error: 'Company not found' });
+    }
+
+    const result = await verifyOtp({ subject: 'COMPANY_REG', recipientEmail: company.companyEmail, code: String(otp), metaMatch: { companyId: company._id.toString() } });
+    if (!result.ok) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired OTP' });
+    }
+
+    // Activate company and primary admin
     company.isVerified = true;
-    company.verificationOTP = undefined;
-    company.otpExpires = undefined;
     await company.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Company verified successfully'
-    });
+    if (result.otp?.meta?.adminUserId) {
+      const adminUser = await User.findById(result.otp.meta.adminUserId);
+      if (adminUser) {
+        adminUser.isVerified = true;
+        adminUser.isPrimaryAdmin = true;
+        await adminUser.save();
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Company verified successfully' });
   } catch (err) {
     next(err);
   }

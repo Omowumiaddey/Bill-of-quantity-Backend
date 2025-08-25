@@ -63,23 +63,19 @@ exports.createEvent = async (req, res, next) => {
 // @access  Private
 exports.updateEvent = async (req, res, next) => {
   try {
-    const event = await Event.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    let event = await Event.findById(req.params.id);
 
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        error: 'Event not found'
-      });
+    if (!event || String(event.company) !== String(req.user.company)) {
+      return res.status(404).json({ success: false, error: 'Event not found' });
     }
 
-    res.status(200).json({
-      success: true,
-      data: event
-    });
+    if (req.user.role === 'user' && String(event.createdBy) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'Not authorized to update this event' });
+    }
+
+    event = await Event.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+
+    res.status(200).json({ success: true, data: event });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }
@@ -92,19 +88,17 @@ exports.deleteEvent = async (req, res, next) => {
   try {
     const event = await Event.findById(req.params.id);
 
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        error: 'Event not found'
-      });
+    if (!event || String(event.company) !== String(req.user.company)) {
+      return res.status(404).json({ success: false, error: 'Event not found' });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Only admin can delete events' });
     }
 
     await event.deleteOne();
 
-    res.status(200).json({
-      success: true,
-      message: 'Event deleted successfully'
-    });
+    res.status(200).json({ success: true, message: 'Event deleted successfully' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }

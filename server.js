@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const { specs, swaggerUi, swaggerOptions } = require('./swagger');
 const multer = require('multer');
 const path = require('path');
@@ -16,7 +18,6 @@ dotenv.config();
 const auth = require('./routes/auth');
 const company = require('./routes/company');
 const bills = require('./routes/billOfQuantity');
-const categories = require('./routes/categories');
 const customers = require('./routes/customers');
 const events = require('./routes/events');
 const ingredients = require('./routes/ingredients');
@@ -31,6 +32,7 @@ app.use((req, res, next) => {
   if (req.path === '/api/company/register') return next();
   return express.json()(req, res, next);
 });
+app.use(cookieParser());
 
 // Multer file upload setup
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -85,6 +87,14 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// Basic rate limiters for auth & OTP endpoints
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', otpLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
+app.use('/api/company/verify-otp', otpLimiter);
+
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerOptions));
 
@@ -108,8 +118,7 @@ app.get('/', (req, res) => {
       menus: '/api/menus',
       events: '/api/events',
       customers: '/api/customers',
-      categories: '/api/categories',
-      bills: '/api/bills'
+            bills: '/api/bills'
     }
   });
 });
@@ -121,7 +130,6 @@ mongoose.connect(process.env.MONGO_URI);
 app.use('/api/auth', auth);
 app.use('/api/company', company);
 app.use('/api/bills', bills);
-app.use('/api/categories', categories);
 app.use('/api/customers', customers);
 app.use('/api/events', events);
 app.use('/api/ingredients', ingredients);

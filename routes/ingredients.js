@@ -8,18 +8,18 @@ const {
 } = require('../controllers/ingredients');
 
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
 
 router.route('/')
   .get(getIngredients)
-  .post(createIngredient);
+  .post(authorize('admin'), createIngredient);
 
 router.route('/:id')
   .get(getIngredient)
-  .put(updateIngredient)
-  .delete(deleteIngredient);
+  .put(authorize('admin'), updateIngredient)
+  .delete(authorize('admin'), deleteIngredient);
 
 /**
  * @swagger

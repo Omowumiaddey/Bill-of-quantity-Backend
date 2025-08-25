@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Please add an email'],
+    lowercase: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
       'Please add a valid email'
@@ -27,6 +28,14 @@ const UserSchema = new mongoose.Schema({
     enum: ['admin', 'user', 'supervisor'],
     required: [true, 'Please specify a role']
   },
+  firstName: {
+    type: String,
+    default: null
+  },
+  lastName: {
+    type: String,
+    default: null
+  },
   password: {
     type: String,
     required: [true, 'Please add a password'],
@@ -37,11 +46,17 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  verificationOTP: {
-    type: String
+  isPrimaryAdmin: {
+    type: Boolean,
+    default: false
   },
-  otpExpires: {
-    type: Date
+  forceLogoutOnClose: {
+    type: Boolean,
+    default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   },
   createdAt: {
     type: Date,
@@ -49,14 +64,17 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
+// Unique email within company
+UserSchema.index({ company: 1, email: 1 }, { unique: true });
+
 // Encrypt password using bcrypt
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 // Sign JWT and return

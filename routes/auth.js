@@ -4,58 +4,47 @@ const {
   verifyUserOTP,
   login,
   getMe,
-  logout
+  logout,
+  forgotPassword,
+  resetPassword,
+  updatePreferences
 } = require('../controllers/auth');
 
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const multer = require('multer');
-// Configure multer to handle file uploads.
-// The upload object is the middleware.
-// We use multer() without a destination to store the file in memory.
-const upload = multer();
 
 /**
  * @swagger
  * components:
  *   schemas:
- *     User:
+ *     RegisterRequest:
  *       type: object
- *       required:
- *         - username
- *         - email
- *         - password
- *         - role
- *         - company
  *       properties:
+ *         companyEmail:
+ *           type: string
+ *           format: email
+ *           description: Registered company email
+ *           example: corp@example.com
+ *         desiredRole:
+ *           type: string
+ *           enum: [admin, supervisor, user]
+ *           example: user
+ *         personalEmail:
+ *           type: string
+ *           format: email
+ *           example: person@example.com
+ *         password:
+ *           type: string
+ *           example: StrongP@ssw0rd
+ *         firstName:
+ *           type: string
+ *         lastName:
+ *           type: string
  *         username:
  *           type: string
- *           description: Unique username
- *           example: john_doe
- *         email:
- *           type: string
- *           format: email
- *           description: User email address
- *           example: john@example.com
- *         password:
- *           type: string
- *           minLength: 6
- *           description: User password
- *           example: password123
- *         role:
- *           type: string
- *           enum: [admin, user, supervisor]
- *           description: User role
- *           example: user
- *         company:
- *           type: string
- *           description: Company ID
- *           example: 507f1f77bcf86cd799439011
  *     LoginRequest:
  *       type: object
- *       required:
- *         - email
- *         - password
+ *       required: [email, password]
  *       properties:
  *         email:
  *           type: string
@@ -63,31 +52,48 @@ const upload = multer();
  *           example: john@example.com
  *         password:
  *           type: string
- *           example: password123
- *     AuthResponse:
- *       type: object
- *       properties:
- *         success:
+ *           example: StrongP@ssw0rd
+ *         rememberMe:
  *           type: boolean
  *           example: true
+ *     VerifyUserOtpRequest:
+ *       type: object
+ *       required: [pendingUserId, code]
+ *       properties:
+ *         pendingUserId:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: "123456"
+ *     ForgotPasswordRequest:
+ *       type: object
+ *       required: [email]
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *         companyEmail:
+ *           type: string
+ *           format: email
+ *           description: Optional company email to disambiguate
+ *     ResetPasswordRequest:
+ *       type: object
+ *       required: [token, newPassword]
+ *       properties:
  *         token:
  *           type: string
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *         data:
- *           type: object
- *           properties:
- *             id:
- *               type: string
- *               example: 507f1f77bcf86cd799439011
- *             username:
- *               type: string
- *               example: john_doe
- *             email:
- *               type: string
- *               example: john@example.com
- *             role:
- *               type: string
- *               example: user
+ *         newPassword:
+ *           type: string
+ *     PreferencesUpdate:
+ *       type: object
+ *       properties:
+ *         forceLogoutOnClose:
+ *           type: boolean
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
  */
 
 /**
@@ -101,25 +107,46 @@ const upload = multer();
  * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Register a new user
+ *     summary: Self-register a user (OTP sent to company email) or legacy direct register
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/User'
+ *             oneOf:
+ *               - $ref: '#/components/schemas/RegisterRequest'
+ *               - type: object
+ *                 description: Legacy direct register
+ *                 properties:
+ *                   username: { type: string }
+ *                   email: { type: string, format: email }
+ *                   password: { type: string }
+ *                   role: { type: string, enum: [admin, supervisor, user] }
+ *                   company: { type: string }
  *     responses:
  *       201:
- *         description: User registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
- *       400:
- *         description: Bad request - validation error
+ *         description: Pending user created (needs OTP) or user registered
  */
 router.post('/register', register);
+
+/**
+ * @swagger
+ * /api/auth/verify-otp:
+ *   post:
+ *     summary: Verify user registration OTP
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyUserOtpRequest'
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ */
+router.post('/verify-otp', verifyUserOTP);
 
 /**
  * @swagger
@@ -136,10 +163,6 @@ router.post('/register', register);
  *     responses:
  *       200:
  *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
  *       401:
  *         description: Invalid credentials
  */
@@ -147,34 +170,39 @@ router.post('/login', login);
 
 /**
  * @swagger
- * /api/auth/verify-otp:
+ * /api/auth/forgot-password:
  *   post:
- *     summary: Verify user OTP
+ *     summary: Request password reset link via email
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - email
- *               - otp
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: john@example.com
- *               otp:
- *                 type: string
- *                 example: "123456"
+ *             $ref: '#/components/schemas/ForgotPasswordRequest'
  *     responses:
  *       200:
- *         description: OTP verified successfully
- *       400:
- *         description: Invalid or expired OTP
+ *         description: If the user exists, a reset email is sent
  */
-router.post('/verify-otp', verifyUserOTP);
+router.post('/forgot-password', forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password using a token from email
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResetPasswordRequest'
+ *     responses:
+ *       200:
+ *         description: Password updated
+ */
+router.post('/reset-password', resetPassword);
 
 /**
  * @swagger
@@ -187,18 +215,6 @@ router.post('/verify-otp', verifyUserOTP);
  *     responses:
  *       200:
  *         description: Current user data
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/User'
- *       401:
- *         description: Unauthorized - Invalid or missing token
  */
 router.get('/me', protect, getMe);
 
@@ -206,34 +222,40 @@ router.get('/me', protect, getMe);
  * @swagger
  * /api/auth/logout:
  *   get:
- *     summary: Logout user
+ *     summary: Logout user and clear refresh cookie
  *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Logout successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User logged out successfully
  */
 router.get('/logout', protect, logout);
-router.post('/register', upload.single('companyLogo'), register); // Add multer middleware here
-router.post('/login', login);
-router.post('/verify-otp', verifyUserOTP);
-router.get('/me', protect, getMe);
-router.get('/logout', protect, logout);
 
+/**
+ * @swagger
+ * /api/users/{id}/preferences:
+ *   patch:
+ *     summary: Update user preferences (e.g., force logout on close)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PreferencesUpdate'
+ *     responses:
+ *       200:
+ *         description: Preferences updated
+ */
+router.patch('/users/:id/preferences', protect, updatePreferences);
 
 module.exports = router;
-
-
-
