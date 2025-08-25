@@ -132,8 +132,7 @@ exports.register = async (req, res) => {
       subject: 'USER_REG',
       recipientEmail: company.companyEmail,
       company: company._id,
-      meta: { pendingUserId: userDoc._id.toString() },
-      ttlMinutes: 10
+      meta: { pendingUserId: userDoc._id.toString() }
     });
 
     const template = otpTemplate({ companyName: company.companyName, code, purpose: 'User registration' });
@@ -141,6 +140,10 @@ exports.register = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Pending user created. Verify OTP sent to company email.', data: { pendingUserId: userDoc._id } });
   } catch (err) {
+    const msg = String(err?.message || '');
+    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg)) {
+      return res.status(503).json({ success: false, error: 'Email service unavailable. Please try again later or use resend OTP.' });
+    }
     res.status(400).json({ success: false, error: err.message });
   }
 };
@@ -230,7 +233,10 @@ exports.forgotPassword = async (req, res) => {
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + (parseExpiryMs(process.env.RESET_TOKEN_EXPIRE || '30m')));
+    const resetTtlMin = parseInt(process.env.PASSWORD_RESET_TTL_MINUTES || '0', 10);
+    const expiresAt = resetTtlMin > 0
+      ? new Date(Date.now() + resetTtlMin * 60 * 1000)
+      : new Date(Date.now() + (parseExpiryMs(process.env.RESET_TOKEN_EXPIRE || '30m')));
 
     await PasswordResetToken.create({ user: user._id, tokenHash, expiresAt });
 
@@ -241,6 +247,41 @@ exports.forgotPassword = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Password reset link sent if the user exists' });
   } catch (err) {
+    const msg = String(err?.message || '');
+    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg)) {
+      return res.status(503).json({ success: false, error: 'Email service unavailable. Please try again later.' });
+    }
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// POST /api/auth/resend-otp
+// body: { companyEmail, pendingUserId }
+exports.resendUserOTP = async (req, res) => {
+  try {
+    const { companyEmail, pendingUserId } = req.body;
+    if (!companyEmail || !pendingUserId) {
+      return res.status(400).json({ success: false, error: 'companyEmail and pendingUserId are required' });
+    }
+    const company = await Company.findOne({ companyEmail: companyEmail.toLowerCase() });
+    if (!company) return res.status(404).json({ success: false, error: 'Company not found' });
+
+    const { code } = await createOtp({
+      subject: 'USER_REG',
+      recipientEmail: company.companyEmail,
+      company: company._id,
+      meta: { pendingUserId: String(pendingUserId) }
+    });
+
+    const template = otpTemplate({ companyName: company.companyName, code, purpose: 'User registration' });
+    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
+
+    res.status(200).json({ success: true, message: 'OTP resent to company email' });
+  } catch (err) {
+    const msg = String(err?.message || '');
+    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg) || err.code === 'OTP_RATE_LIMIT') {
+      return res.status(503).json({ success: false, error: 'Email service unavailable or rate limited. Please try again later.' });
+    }
     res.status(400).json({ success: false, error: err.message });
   }
 };

@@ -2,6 +2,7 @@ const express = require('express');
 const {
   registerCompany,
   verifyCompanyOTP,
+  resendCompanyOTP,
   getCompany
 } = require('../controllers/company');
 
@@ -13,6 +14,7 @@ const { upload } = require('../middleware/upload');
 // Accept both JSON and multipart/form-data (optional companyLogo file)
 router.post('/register', upload.single('companyLogo'), registerCompany);
 router.post('/verify-otp', verifyCompanyOTP);
+router.post('/resend-otp', resendCompanyOTP);
 router.get('/:id', protect, getCompany);
 
 module.exports = router;
@@ -103,6 +105,28 @@ module.exports = router;
  */
 
 /**
+ * @swagger
+ * /api/company/resend-otp:
+ *   post:
+ *     summary: Resend company registration OTP
+ *     tags: [Company]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [companyEmail]
+ *             properties:
+ *               companyEmail:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: OTP resent
+ *       404:
+ *         description: Company not found
+ *
  * @swagger
  * /api/company/{id}:
  *   get:

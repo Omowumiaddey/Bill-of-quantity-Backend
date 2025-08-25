@@ -7,7 +7,9 @@ const {
   logout,
   forgotPassword,
   resetPassword,
-  updatePreferences
+  updatePreferences,
+  // resend endpoint to support UI flows
+  resendUserOTP
 } = require('../controllers/auth');
 
 const router = express.Router();
@@ -147,6 +149,27 @@ router.post('/register', register);
  *         description: OTP verified successfully
  */
 router.post('/verify-otp', verifyUserOTP);
+/**
+ * @swagger
+ * /api/auth/resend-otp:
+ *   post:
+ *     summary: Resend a user registration OTP to the company email
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [companyEmail, pendingUserId]
+ *             properties:
+ *               companyEmail: { type: string, format: email }
+ *               pendingUserId: { type: string }
+ *     responses:
+ *       200:
+ *         description: OTP resent if allowed by rate limits
+ */
+router.post('/resend-otp', resendUserOTP);
 
 /**
  * @swagger

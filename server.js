@@ -90,10 +90,21 @@ if (process.env.NODE_ENV === 'development') {
 // Basic rate limiters for auth & OTP endpoints
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+// Env-driven limiter for OTP generation endpoints
+const otpSendLimiter = rateLimit({
+  windowMs: parseInt(process.env.OTP_RATE_LIMIT_WINDOW_MIN || '10', 10) * 60 * 1000,
+  max: parseInt(process.env.OTP_RATE_LIMIT_MAX || '5', 10),
+  standardHeaders: true,
+  legacyHeaders: false
+});
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', otpLimiter);
 app.use('/api/auth/verify-otp', otpLimiter);
 app.use('/api/company/verify-otp', otpLimiter);
+app.use('/api/auth/register', otpSendLimiter);
+app.use('/api/auth/resend-otp', otpSendLimiter);
+app.use('/api/company/register', otpSendLimiter);
+app.use('/api/company/resend-otp', otpSendLimiter);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerOptions));

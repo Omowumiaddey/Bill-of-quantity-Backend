@@ -58,8 +58,7 @@ exports.registerCompany = async (req, res, next) => {
       subject: 'COMPANY_REG',
       recipientEmail: company.companyEmail,
       company: company._id,
-      meta: { companyId: company._id.toString(), adminUserId: adminUser._id.toString() },
-      ttlMinutes: 10
+      meta: { companyId: company._id.toString(), adminUserId: adminUser._id.toString() }
     });
 
     // Send OTP email
@@ -72,6 +71,10 @@ exports.registerCompany = async (req, res, next) => {
       data: { companyId: company._id, companyEmail: company.companyEmail, adminUserId: adminUser._id }
     });
   } catch (err) {
+    const msg = String(err?.message || '');
+    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg)) {
+      return res.status(503).json({ success: false, error: 'Email service unavailable. Please try again or use resend OTP.' });
+    }
     next(err);
   }
 };
@@ -111,6 +114,44 @@ exports.verifyCompanyOTP = async (req, res, next) => {
 
     res.status(200).json({ success: true, message: 'Company verified successfully' });
   } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Resend company registration OTP
+// @route   POST /api/company/resend-otp
+// @access  Public
+exports.resendCompanyOTP = async (req, res, next) => {
+  try {
+    const { companyEmail } = req.body;
+    if (!companyEmail) {
+      return res.status(400).json({ success: false, error: 'companyEmail is required' });
+    }
+
+    const company = await Company.findOne({ companyEmail: companyEmail.toLowerCase() });
+    if (!company) {
+      return res.status(404).json({ success: false, error: 'Company not found' });
+    }
+    if (company.isVerified) {
+      return res.status(400).json({ success: false, error: 'Company already verified' });
+    }
+
+    const { code } = await createOtp({
+      subject: 'COMPANY_REG',
+      recipientEmail: company.companyEmail,
+      company: company._id,
+      meta: { companyId: company._id.toString() }
+    });
+
+    const template = otpTemplate({ companyName: company.companyName, code, purpose: 'Company registration' });
+    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
+
+    res.status(200).json({ success: true, message: 'OTP resent to company email' });
+  } catch (err) {
+    const msg = String(err?.message || '');
+    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg)) {
+      return res.status(503).json({ success: false, error: 'Email service unavailable. Please try again later.' });
+    }
     next(err);
   }
 };
