@@ -45,7 +45,7 @@ const options = {
     './routes/menus.js',
     './routes/events.js',
     './routes/customers.js',
-    './routes/ingredients.js',
+     './routes/ingredients.js',
     './routes/billOfQuantity.js',
     './models/*.js'
   ],
