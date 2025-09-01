@@ -13,7 +13,7 @@ const {
 } = require('../controllers/auth');
 
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, ensureApiAuth } = require('../middleware/auth');
 
 /**
  * @swagger
@@ -280,5 +280,25 @@ router.get('/logout', protect, logout);
  *         description: Preferences updated
  */
 router.patch('/users/:id/preferences', protect, updatePreferences);
+
+/**
+ * @swagger
+ * /api/auth/verify:
+ *   get:
+ *     summary: Verify token and get user ID (for frontend use)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token is valid, returns user ID
+ */
+router.get('/verify', protect, (req, res) => {
+  return res.status(200).json({
+    success: true,
+    userId: req.user ? req.user._id : null,
+    user: req.user ? { id: req.user._id, email: req.user.email, role: req.user.role } : null
+  });
+});
 
 module.exports = router;
