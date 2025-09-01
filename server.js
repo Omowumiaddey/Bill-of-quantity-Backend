@@ -22,6 +22,7 @@ const customers = require('./routes/customers');
 const events = require('./routes/events');
 const ingredients = require('./routes/ingredients');
 const menus = require('./routes/menus');
+const emailRoute = require('./routes/email');
 
 // Initialize Express app
 const app = express();
@@ -145,6 +146,7 @@ app.use('/api/customers', customers);
 app.use('/api/events', events);
 app.use('/api/ingredients', ingredients);
 app.use('/api/menus', menus);
+app.use('/api/email', emailRoute);
 
 const PORT = process.env.PORT || 5000;
 
