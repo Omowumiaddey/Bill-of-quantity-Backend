@@ -1,12 +1,29 @@
 const SibApiV3Sdk = require('sib-api-v3-sdk');
+const nodemailer = require('nodemailer');
 
-// Configure API key from env
+// Configure Brevo (Sendinblue) API key from env
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
-defaultClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+if (process.env.BREVO_API_KEY) {
+  defaultClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+}
 
 const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
-async function sendMail(toEmail, subject, content) {
+// Prepare SMTP transporter if SMTP envs are present
+let transporter = null;
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: (process.env.SMTP_SECURE === 'true'),
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+}
+
+async function sendMailAPI(toEmail, subject, content) {
   try {
     const senderEmail = process.env.CAMPAIGN_SENDER_EMAIL || process.env.MAIL_FROM || 'no-reply@example.com';
     const senderName = process.env.CAMPAIGN_SENDER_NAME || 'ASL BoQ';
@@ -21,10 +38,30 @@ async function sendMail(toEmail, subject, content) {
     const result = await tranEmailApi.sendTransacEmail(sendSmtpEmail);
     return result;
   } catch (err) {
-    // Normalize error body if present
     if (err && err.response && err.response.body) throw err.response.body;
     throw err;
   }
 }
 
-module.exports = { sendMail };
+async function sendMailSMTP(toEmail, subject, content) {
+  if (!transporter) throw new Error('SMTP is not configured (missing SMTP_HOST/SMTP_USER/SMTP_PASS)');
+  try {
+    const from = process.env.MAIL_FROM || process.env.SMTP_USER;
+    const info = await transporter.sendMail({
+      from: `"${process.env.CAMPAIGN_SENDER_NAME || 'ASL BoQ'}" <${from}>`,
+      to: toEmail,
+      subject: subject,
+      html: `<div>${content}</div>`
+    });
+    return info;
+  } catch (err) {
+    throw err;
+  }
+}
+
+// Default export kept for backwards compatibility (uses API if available)
+module.exports = {
+  sendMailAPI,
+  sendMailSMTP,
+  sendMail: sendMailAPI
+};
