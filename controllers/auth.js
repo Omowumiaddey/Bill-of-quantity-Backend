@@ -2,7 +2,8 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const PasswordResetToken = require('../models/PasswordResetToken');
 const { createOtp, verifyOtp } = require('../utils/otp');
-const { sendMail, otpTemplate, resetTemplate } = require('../utils/email');
+const { otpTemplate, resetTemplate } = require('../utils/email');
+const { sendMailAPI } = require('../services/emailService');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -136,7 +137,7 @@ exports.register = async (req, res) => {
     });
 
     const template = otpTemplate({ companyName: company.companyName, code, purpose: 'User registration' });
-    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
+  await sendMailAPI(company.companyEmail, template.subject, template.html);
 
     res.status(201).json({ success: true, message: 'Pending user created. Verify OTP sent to company email.', data: { pendingUserId: userDoc._id } });
   } catch (err) {
@@ -243,7 +244,7 @@ exports.forgotPassword = async (req, res) => {
     const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5173';
     const link = `${frontendBase.replace(/\/$/, '')}/reset?token=${rawToken}`;
     const template = resetTemplate({ companyName: (await Company.findById(user.company))?.companyName, link });
-    await sendMail({ to: user.email, subject: template.subject, html: template.html, text: template.text });
+  await sendMailAPI(user.email, template.subject, template.html);
 
     res.status(200).json({ success: true, message: 'Password reset link sent if the user exists' });
   } catch (err) {
@@ -274,7 +275,7 @@ exports.resendUserOTP = async (req, res) => {
     });
 
     const template = otpTemplate({ companyName: company.companyName, code, purpose: 'User registration' });
-    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
+  await sendMailAPI(company.companyEmail, template.subject, template.html);
 
     res.status(200).json({ success: true, message: 'OTP resent to company email' });
   } catch (err) {
