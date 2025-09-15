@@ -1,13 +1,13 @@
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const brevo = require('@getbrevo/brevo');
 const nodemailer = require('nodemailer');
 
-// Configure Brevo (Sendinblue) API key from env
-const defaultClient = SibApiV3Sdk.ApiClient.instance;
+// Configure Brevo API key from env
+const defaultClient = brevo.ApiClient.instance;
 if (process.env.BREVO_API_KEY) {
   defaultClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 }
 
-const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
+const tranEmailApi = new brevo.TransactionalEmailsApi();
 
 // Prepare SMTP transporter if SMTP envs are present
 let transporter = null;
@@ -28,12 +28,11 @@ async function sendMailAPI(toEmail, subject, content) {
     const senderEmail = process.env.CAMPAIGN_SENDER_EMAIL || process.env.MAIL_FROM || 'no-reply@example.com';
     const senderName = process.env.CAMPAIGN_SENDER_NAME || 'ASL BoQ';
 
-    const sendSmtpEmail = {
-      sender: { email: senderEmail, name: senderName },
-      to: [{ email: toEmail }],
-      subject: subject,
-      htmlContent: `<html><body>${content}</body></html>`
-    };
+    const sendSmtpEmail = new brevo.SendSmtpEmail();
+    sendSmtpEmail.sender = { email: senderEmail, name: senderName };
+    sendSmtpEmail.to = [{ email: toEmail }];
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = `<html><body>${content}</body></html>`;
 
     const result = await tranEmailApi.sendTransacEmail(sendSmtpEmail);
     return result;

@@ -1,7 +1,8 @@
 const Company = require('../models/Company');
 const User = require('../models/User');
 const { createOtp, verifyOtp } = require('../utils/otp');
-const { sendMail, otpTemplate } = require('../utils/email');
+const { otpTemplate } = require('../utils/email');
+const { sendMailAPI } = require('../services/emailService');
 
 
 // @desc    Register company
@@ -9,10 +10,14 @@ const { sendMail, otpTemplate } = require('../utils/email');
 // @access  Public
 exports.registerCompany = async (req, res, next) => {
   try {
-    const { companyName, companyEmail, password, ...rest } = req.body;
+    // Accept both adminPassword and password (backward compatibility)
+    const { companyName, companyEmail, adminPassword, password, adminEmail, ...rest } = req.body;
 
-    // pre-check to give a nicer error before attempting insert
-    const existing = await Company.findOne({ companyEmail });
+    // Normalize email for lookups
+    const normalizedCompanyEmail = String(companyEmail).toLowerCase();
+
+    // Pre-check to give a nicer error before attempting insert
+    const existing = await Company.findOne({ companyEmail: normalizedCompanyEmail });
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -21,10 +26,47 @@ exports.registerCompany = async (req, res, next) => {
       });
     }
 
-    const payload = { companyName, companyEmail, password, ...rest };
+    // Persist company; ensure we store the field expected by the schema (adminPassword)
+    const payload = {
+      companyName,
+      companyEmail: normalizedCompanyEmail,
+      adminPassword: adminPassword || password,
+      ...rest
+    };
     const company = await Company.create(payload);
 
-    res.status(201).json({ success: true, data: company });
+    // Create a pending primary admin user for this company
+    const primaryAdminEmail = String(adminEmail || companyEmail).toLowerCase();
+    const usernameLocal = primaryAdminEmail.split('@')[0] || 'admin';
+    const username = `${usernameLocal}_${String(company._id).slice(-5)}`;
+
+    const adminUser = await User.create({
+      username,
+      email: primaryAdminEmail,
+      password: adminPassword || password,
+      role: 'admin',
+      company: company._id,
+      isVerified: false,
+      // mark primary admin after OTP verification for the company
+      isPrimaryAdmin: false
+    });
+
+    // Generate OTP and send via Brevo transactional API to the company email
+    const { code } = await createOtp({
+      subject: 'COMPANY_REG',
+      recipientEmail: company.companyEmail,
+      company: company._id,
+      meta: { companyId: company._id.toString(), adminUserId: adminUser._id.toString() }
+    });
+
+    const template = otpTemplate({ companyName: company.companyName, code, purpose: 'Company registration' });
+    await sendMailAPI(company.companyEmail, template.subject, template.html);
+
+    res.status(201).json({
+      success: true,
+      message: 'Company registered. OTP sent to company email for verification.',
+      data: { id: company._id }
+    });
   } catch (err) {
     // handle Mongo duplicate key error
     if (err && (err.code === 11000 || err.name === 'MongoServerError')) {
@@ -34,6 +76,11 @@ exports.registerCompany = async (req, res, next) => {
         fieldErrors: { [dupField]: `${dupField} already exists` },
         error: 'Duplicate key'
       });
+    }
+
+    const msg = String(err?.message || '');
+    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg)) {
+      return res.status(503).json({ success: false, error: 'Email service unavailable. Please try again later.' });
     }
 
     res.status(400).json({ success: false, error: err.message });
@@ -118,15 +165,21 @@ exports.resendCompanyOTP = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Company already verified' });
     }
 
+    // Try to include the pending admin user id in OTP meta (if one exists)
+    const pendingAdmin = await User.findOne({ company: company._id, role: 'admin', isVerified: false }).sort({ createdAt: 1 });
+
     const { code } = await createOtp({
       subject: 'COMPANY_REG',
       recipientEmail: company.companyEmail,
       company: company._id,
-      meta: { companyId: company._id.toString() }
+      meta: {
+        companyId: company._id.toString(),
+        ...(pendingAdmin ? { adminUserId: pendingAdmin._id.toString() } : {})
+      }
     });
 
     const template = otpTemplate({ companyName: company.companyName, code, purpose: 'Company registration' });
-    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
+    await sendMailAPI(company.companyEmail, template.subject, template.html);
 
     res.status(200).json({ success: true, message: 'OTP resent to company email' });
   } catch (err) {
