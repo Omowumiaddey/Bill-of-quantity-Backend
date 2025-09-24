@@ -27,6 +27,11 @@ const emailRoute = require('./routes/email');
 // Initialize Express app
 const app = express();
 
+// Trust the Render proxy in production so req.protocol and secure cookies work correctly
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Body parser
 // Skip JSON parsing for company registration to allow multipart/form-data
 app.use((req, res, next) => {
@@ -73,11 +78,13 @@ app.use(cors({
     // allow requests with no origin (like mobile apps, curl)
     if (!origin) return callback(null, true);
     if (corsOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    // Do not throw; return false so the request proceeds without CORS headers (browser will block).
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
 }));
 
 // Security headers
@@ -148,12 +155,25 @@ app.use('/api/ingredients', ingredients);
 app.use('/api/menus', menus);
 app.use('/api/email', emailRoute);
 
+// Centralized error handler to return JSON instead of HTML for errors
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || (err.message && /Not allowed by CORS/.test(err.message) ? 403 : 500);
+  const payload = {
+    success: false,
+    error: err.message || 'Internal Server Error'
+  };
+  if (process.env.NODE_ENV !== 'production' && err.stack) {
+    payload.stack = err.stack;
+  }
+  res.status(status).json(payload);
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV}]`);
   const baseUrl = process.env.NODE_ENV === 'production'
-    ? 'https://bill-of-quantity-backend.onrender.com'
+    ? (process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`)
     : `http://localhost:${PORT}`;
   console.log(`📚 API Documentation: ${baseUrl}/api-docs`);
   console.log(`🔗 API Base URL: ${baseUrl}`);
