@@ -9,73 +9,34 @@ const { sendMail, otpTemplate } = require('../utils/email');
 // @access  Public
 exports.registerCompany = async (req, res, next) => {
   try {
-    const {
-      companyName,
-      companyEmail,
-      adminEmail,
-      companyAddress,
-      companyContactNumber,
-      adminPassword,
-      companyLogo: companyLogoBody
-    } = req.body;
+    const { companyName, companyEmail, password, ...rest } = req.body;
 
-    // If multipart/form-data was used and a file was uploaded, prefer it
-    let companyLogo = companyLogoBody;
-    if (req.file) {
-      // Build a public URL to the uploaded file
-      const protocol = req.protocol;
-      const host = req.get('host');
-      const baseUrl = `${protocol}://${host}`;
-      companyLogo = `${baseUrl}/uploads/${req.file.filename}`;
+    // pre-check to give a nicer error before attempting insert
+    const existing = await Company.findOne({ companyEmail });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        fieldErrors: { companyEmail: 'Email already in use' },
+        fields: { companyName, companyEmail, ...rest }
+      });
     }
 
-    // Create company in unverified state (adminPassword hashed by model)
-    const company = await Company.create({
-      companyName,
-      companyEmail: companyEmail.toLowerCase(),
-      companyAddress,
-      companyContactNumber,
-      adminPassword,
-      companyLogo,
-      isVerified: false
-    });
+    const payload = { companyName, companyEmail, password, ...rest };
+    const company = await Company.create(payload);
 
-    // Create primary admin user (unverified)
-    const usernameSource = (adminEmail || companyEmail || '');
-    const username = usernameSource.split('@')[0] || `admin_${Date.now()}`;
-    const adminUser = await User.create({
-      username,
-      email: (adminEmail || companyEmail).toLowerCase(),
-      password: adminPassword,
-      role: 'admin',
-      company: company._id,
-      isVerified: false,
-      isPrimaryAdmin: false
-    });
-
-    // Generate OTP via centralized service
-    const { code } = await createOtp({
-      subject: 'COMPANY_REG',
-      recipientEmail: company.companyEmail,
-      company: company._id,
-      meta: { companyId: company._id.toString(), adminUserId: adminUser._id.toString() }
-    });
-
-    // Send OTP email
-    const template = otpTemplate({ companyName: company.companyName, code, purpose: 'Company registration' });
-    await sendMail({ to: company.companyEmail, subject: template.subject, html: template.html, text: template.text });
-
-    res.status(201).json({
-      success: true,
-      message: 'Company registered. Verify with OTP sent to company email to activate.',
-      data: { companyId: company._id, companyEmail: company.companyEmail, adminUserId: adminUser._id }
-    });
+    res.status(201).json({ success: true, data: company });
   } catch (err) {
-    const msg = String(err?.message || '');
-    if (/Email service is unavailable|ECONNREFUSED|ECONNECTION|ETIMEDOUT|ENOTFOUND/.test(msg)) {
-      return res.status(503).json({ success: false, error: 'Email service unavailable. Please try again or use resend OTP.' });
+    // handle Mongo duplicate key error
+    if (err && (err.code === 11000 || err.name === 'MongoServerError')) {
+      const dupField = Object.keys(err.keyPattern || err.keyValue || { companyEmail: 1 })[0];
+      return res.status(409).json({
+        success: false,
+        fieldErrors: { [dupField]: `${dupField} already exists` },
+        error: 'Duplicate key'
+      });
     }
-    next(err);
+
+    res.status(400).json({ success: false, error: err.message });
   }
 };
 
@@ -113,6 +74,27 @@ exports.verifyCompanyOTP = async (req, res, next) => {
     }
 
     res.status(200).json({ success: true, message: 'Company verified successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Check if company email exists
+// @route   GET /api/company/check-email
+// @access  Public
+exports.checkCompanyEmail = async (req, res, next) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+
+    const company = await Company.findOne({ companyEmail: email.toLowerCase() });
+    if (company) {
+      return res.status(409).json({ success: false, error: 'This email is already in use.' });
+    }
+
+    res.status(200).json({ success: true, message: 'Email is available.' });
   } catch (err) {
     next(err);
   }
@@ -178,4 +160,3 @@ exports.getCompany = async (req, res, next) => {
     next(err);
   }
 };
-
