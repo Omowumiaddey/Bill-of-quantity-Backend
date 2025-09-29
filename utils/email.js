@@ -18,8 +18,19 @@ async function sendMail({ to, subject, html, text }) {
       }
     });
 
+    // Add connection timeouts to avoid hanging requests against a slow SMTP server
+    // Values are in milliseconds; tune as needed or override via env
+    transporter.options = transporter.options || {};
+    transporter.options.connectionTimeout = parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000', 10);
+    transporter.options.greetingTimeout = parseInt(process.env.SMTP_GREETING_TIMEOUT || '5000', 10);
+    transporter.options.socketTimeout = parseInt(process.env.SMTP_SOCKET_TIMEOUT || '20000', 10);
+
+    // Verify transporter early so failures show up quickly
+    // This will throw if the connection/auth fails
+    await transporter.verify();
+
     const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM,
+      from: process.env.MAIL_FROM || 'no-reply@asl-boq.example',
       to,
       subject,
       text,
