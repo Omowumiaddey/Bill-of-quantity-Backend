@@ -2,6 +2,10 @@ const nodemailer = require('nodemailer');
 
 async function sendMail({ to, subject, html, text }) {
   try {
+    const connectionTimeout = parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000', 10);
+    const greetingTimeout = parseInt(process.env.SMTP_GREETING_TIMEOUT || '5000', 10);
+    const socketTimeout = parseInt(process.env.SMTP_SOCKET_TIMEOUT || '20000', 10);
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587', 10),
@@ -15,22 +19,19 @@ async function sendMail({ to, subject, html, text }) {
         rejectUnauthorized: process.env.SMTP_REJECT_UNAUTH
           ? String(process.env.SMTP_REJECT_UNAUTH) === 'true'
           : true
-      }
+      },
+      // timeouts in ms
+      connectionTimeout,
+      greetingTimeout,
+      socketTimeout
     });
 
-    // Add connection timeouts to avoid hanging requests against a slow SMTP server
-    // Values are in milliseconds; tune as needed or override via env
-    transporter.options = transporter.options || {};
-    transporter.options.connectionTimeout = parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000', 10);
-    transporter.options.greetingTimeout = parseInt(process.env.SMTP_GREETING_TIMEOUT || '5000', 10);
-    transporter.options.socketTimeout = parseInt(process.env.SMTP_SOCKET_TIMEOUT || '20000', 10);
-
-    // Verify transporter early so failures show up quickly
-    // This will throw if the connection/auth fails
+    // Verify transporter early so failures show up quickly; this will throw on auth/connect issues
     await transporter.verify();
 
     const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM || 'no-reply@asl-boq.example',
+      // Prefer an explicit MAIL_FROM; fall back to SMTP_USER when available
+      from: process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@asl-boq.example',
       to,
       subject,
       text,
