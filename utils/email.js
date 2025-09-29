@@ -1,35 +1,36 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: String(process.env.SMTP_SECURE || 'false') === 'true',
-  auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  } : undefined,
-  tls: {
-    // In production, certificates should be valid; allow override via env
-    rejectUnauthorized: process.env.SMTP_REJECT_UNAUTH
-      ? String(process.env.SMTP_REJECT_UNAUTH) === 'true'
-      : true
-  }
-});
-
 async function sendMail({ to, subject, html, text }) {
-  const fromEmail = process.env.SMTP_FROM || process.env.MAIL_FROM || 'no-reply@aslboq.local';
-  const fromName = process.env.SMTP_FROM_NAME || 'ASL BOQ';
-  const from = `${fromName} <${fromEmail}>`;
   try {
-    await transporter.sendMail({ from, to, subject, html, text });
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: String(process.env.SMTP_SECURE || 'false') === 'true',
+      auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      } : undefined,
+      tls: {
+        // In production, certificates should be valid; allow override via env
+        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTH
+          ? String(process.env.SMTP_REJECT_UNAUTH) === 'true'
+          : true
+      }
+    });
+
+    const info = await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to,
+      subject,
+      text,
+      html
+    });
+
+    console.log('Email sent:', { to, messageId: info.messageId, response: info.response });
+    return info;
   } catch (err) {
-    const connectionRefused = err.code === 'ECONNECTION' || err.code === 'ECONNREFUSED';
-    const hostname = process.env.SMTP_HOST || 'undefined';
-    const port = process.env.SMTP_PORT || 'undefined';
-    if (connectionRefused) {
-      const msg = `Email service is unavailable (SMTP connection refused to ${hostname}:${port}).`;
-      err.message = msg;
-    }
+    console.error('sendMail error:', err && (err.stack || err.message || err));
+    // rethrow so callers can handle and your route catch shows it
     throw err;
   }
 }
@@ -50,4 +51,8 @@ function resetTemplate({ companyName, link }) {
   };
 }
 
-module.exports = { sendMail, otpTemplate, resetTemplate };
+module.exports = {
+  sendMail,
+  otpTemplate,
+  resetTemplate
+};
