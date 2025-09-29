@@ -48,3 +48,18 @@ exports.authorize = (...roles) => {
     next();
   };
 };
+
+exports.ensureApiAuth = (req, res, next) => {
+  // if using passport/session
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return next();
+  }
+
+  // if using JWT in header
+  if (req.user || req.userId) {
+    return next();
+  }
+
+  // respond JSON for API clients instead of redirecting to HTML login
+  return res.status(401).json({ success: false, error: 'Unauthorized' });
+};
